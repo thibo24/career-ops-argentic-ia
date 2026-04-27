@@ -11,7 +11,7 @@ Use `modes/pt/` se pelo menos uma das condições abaixo for verdadeira:
 - Você precisa de respostas e cartas de apresentação em **português tech natural**, não traduzido por máquina
 - Você precisa lidar com **especificidades do mercado brasileiro**: CLT vs PJ, 13º salário, FGTS, PLR, vale-refeição, plano de saúde, aviso prévio, período de experiência
 
-Se a maioria das suas vagas é em inglês, fique com os modos padrão em `modes/`. Os modos em inglês funcionam automaticamente quando Claude detecta uma vaga em português — mas não conhecem as particularidades do mercado brasileiro no mesmo nível de detalhe.
+Se a maioria das suas vagas é em inglês, fique com os modos padrão em `modes/`. Os modos em inglês funcionam automaticamente quando o agente detecta uma vaga em português — mas não conhecem as particularidades do mercado brasileiro no mesmo nível de detalhe.
 
 ## Como ativar?
 
@@ -19,7 +19,7 @@ O career-ops não tem um "switch de idioma" como flag de código. Em vez disso, 
 
 ### Caminho 1 -- Por sessão, via comando
 
-Diga ao Claude no início da sessão:
+Diga ao agente no início da sessão:
 
 > "Use os modos em português de `modes/pt/`."
 
@@ -27,7 +27,7 @@ ou
 
 > "Avaliar e candidaturas em português -- use `modes/pt/_shared.md` e `modes/pt/oferta.md`."
 
-Claude vai ler os arquivos desta pasta em vez de `modes/`.
+O agente vai ler os arquivos desta pasta em vez de `modes/`.
 
 ### Caminho 2 -- Permanente, via perfil
 
@@ -39,7 +39,7 @@ language:
   modes_dir: modes/pt
 ```
 
-Lembre o Claude na primeira sessão de respeitar esse campo ("Olha no `profile.yml`, eu configurei `language.modes_dir`"). A partir daí, Claude usa automaticamente os modos em português.
+Lembre o agente na primeira sessão de respeitar esse campo ("Olha no `profile.yml`, eu configurei `language.modes_dir`"). A partir daí, o agente usa automaticamente os modos em português.
 
 > Nota: O campo `language.modes_dir` é uma convenção, não um schema rígido. Se os mantenedores quiserem estruturar diferente, o campo pode ser renomeado a qualquer momento.
 

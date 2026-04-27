@@ -6,7 +6,7 @@
 > Компании используют ИИ для фильтрации кандидатов. **Я дал кандидатам ИИ, чтобы *выбирать* компании.**
 > *Теперь это open source.*
 
-[![Claude Code](https://img.shields.io/badge/Claude_Code-000?style=flat&logo=anthropic&logoColor=white)](https://claude.ai)
+![AI Agents](https://img.shields.io/badge/AI_Agents-0F172A?style=flat&logo=robotframework&logoColor=white)
 [![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat&logo=node.js&logoColor=white)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white)](https://go.dev)
 [![MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -37,7 +37,7 @@ Career-Ops превращает любой AI-CLI в полноценный ко
 | **Скрипты переговоров** | Фреймворки зарплатных переговоров, отстаивание рыночной ставки, использование конкурирующих офферов |
 | **ATS PDF-генерация** | Резюме с инъекцией ключевых слов, дизайн Space Grotesk + DM Sans |
 | **Сканер порталов** | 45+ предустановленных компаний (международный рынок) + российские площадки (hh.ru, Хабр Карьера, trudvsem.ru и др.) — добавляются вручную в `portals.yml` |
-| **Пакетная обработка** | Параллельная оценка через `claude -p` воркеры |
+| **Пакетная обработка** | Параллельная оценка через настраиваемый агентный раннер |
 | **Dashboard TUI** | Терминальный UI для просмотра, фильтрации и сортировки пайплайна |
 | **Human-in-the-Loop** | ИИ оценивает и рекомендует, вы решаете и действуете. Система никогда не отправляет отклик сама |
 | **Целостность пайплайна** | Автоматический merge, дедупликация, нормализация статусов, проверки здоровья |
@@ -60,10 +60,11 @@ cp templates/portals.example.yml portals.yml       # Настрой компан
 # 4. Добавь своё CV
 # Создай cv.md в корне проекта с резюме в формате Markdown
 
-# 5. Персонализируй через Claude
-claude   # Открой Claude Code в директории проекта
+# 5. Открой совместимого агента в директории проекта
+claude   # Claude Code
+gemini   # Gemini CLI
 
-# Попроси Claude адаптировать систему:
+# Попроси своего агента адаптировать систему:
 # "Смени архетипы на backend-разработку PHP/Go"
 # "Переведи режимы на русский"  
 # "Добавь эти 5 компаний в portals.yml"
@@ -169,7 +170,7 @@ go build -o career-dashboard .
 
 ```
 career-ops/
-├── CLAUDE.md                    # Инструкции для агента
+├── AGENTS.md                    # Канонические инструкции для агента
 ├── cv.md                        # Ваше CV (создайте)
 ├── config/
 │   └── profile.example.yml      # Шаблон профиля
@@ -197,7 +198,7 @@ career-ops/
 
 ## Технологии
 
-- **Агент**: Claude Code с кастомными навыками и режимами
+- **Агентный слой**: совместимый агент через `AGENTS.md` и опциональные адаптеры
 - **PDF**: Playwright + HTML-шаблон
 - **Сканер**: Playwright + Greenhouse API + WebSearch
 - **Dashboard**: Go + Bubble Tea + Lipgloss (тема Catppuccin Mocha)

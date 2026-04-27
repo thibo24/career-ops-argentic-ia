@@ -8,6 +8,9 @@ argument-hint: "[scan | deep | pdf | oferta | ofertas | apply | batch | tracker 
 
 # career-ops -- Router
 
+Project canon lives in `AGENTS.md`. This skill is the Claude adapter over the
+shared Career-Ops core.
+
 ## Mode Routing
 
 Determine the mode from `{{mode}}`:

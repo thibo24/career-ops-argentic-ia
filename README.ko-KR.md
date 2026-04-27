@@ -13,9 +13,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Claude_Code-000?style=flat&logo=anthropic&logoColor=white" alt="Claude Code">
+  <img src="https://img.shields.io/badge/AI_Agents-0F172A?style=flat&logo=robotframework&logoColor=white" alt="AI Agents">
   <img src="https://img.shields.io/badge/OpenCode-111827?style=flat&logo=terminal&logoColor=white" alt="OpenCode">
-  <img src="https://img.shields.io/badge/Codex_(soon)-6B7280?style=flat&logo=openai&logoColor=white" alt="Codex">
+  <img src="https://img.shields.io/badge/Codex-6B7280?style=flat&logo=openai&logoColor=white" alt="Codex">
   <img src="https://img.shields.io/badge/Node.js-339933?style=flat&logo=node.js&logoColor=white" alt="Node.js">
   <img src="https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white" alt="Go">
   <img src="https://img.shields.io/badge/Playwright-2EAD33?style=flat&logo=playwright&logoColor=white" alt="Playwright">
@@ -52,7 +52,7 @@ Career-Ops는 AI 코딩 CLI를 취업 활동 전체를 관리하는 커맨드 �
 
 > **중요: 이 도구는 무차별 지원 도구가 아닙니다.** Career-ops는 필터입니다 -- 수백 개의 공고 중 당신의 시간을 투자할 가치가 있는 소수의 공고를 찾아줍니다. 4.0/5 미만의 공고에는 지원하지 않는 것을 강력히 권장합니다. 당신의 시간도, 채용 담당자의 시간도 소중합니다. 제출 전에 항상 직접 검토하세요.
 
-Career-ops는 에이전트 기반으로 작동합니다: Claude Code가 Playwright로 채용 페이지를 탐색하고, 키워드 매칭이 아닌 이력서와 JD를 비교 분석하여 적합도를 판단하고, 공고별로 이력서를 맞춤 생성합니다.
+Career-ops는 에이전트 기반으로 작동합니다: 호환되는 에이전트가 Playwright로 채용 페이지를 탐색하고, 키워드 매칭이 아닌 이력서와 JD를 비교 분석하여 적합도를 판단하고, 공고별로 이력서를 맞춤 생성합니다.
 
 > **참고: 처음 몇 번의 평가는 정확하지 않을 수 있습니다.** 시스템이 아직 당신을 모르기 때문입니다. 이력서, 커리어 스토리, 주요 성과, 선호도, 잘하는 것, 피하고 싶은 것 등 맥락을 알려주세요. 정보를 줄수록 더 정확해집니다. 새로운 리크루터를 온보딩한다고 생각하세요: 첫 주는 당신을 파악하는 시간이고, 그 이후부터 진가를 발휘합니다.
 
@@ -68,7 +68,7 @@ Career-ops는 에이전트 기반으로 작동합니다: Claude Code가 Playwrig
 | **협상 전략 스크립트** | 연봉 협상 프레임워크, 거주지 기반 연봉 차등(Geographic Discount) 대응 논리, 경쟁 오퍼 활용 전략 |
 | **ATS PDF 생성** | Space Grotesk + DM Sans 디자인, 키워드가 주입된 이력서 |
 | **포털 스캐너** | 45개 이상의 기업 사전 설정 (Anthropic, OpenAI, ElevenLabs, Retool, n8n 등) + Ashby, Greenhouse, Lever, Wellfound 전반의 커스텀 검색 |
-| **일괄 처리** | `claude -p` 워커로 병렬 평가 |
+| **일괄 처리** | 구성 가능한 에이전트 러너로 병렬 평가 |
 | **Dashboard TUI** | 터미널 UI에서 파이프라인 탐색, 필터링, 정렬 |
 | **Human-in-the-Loop** | AI가 평가하고 추천하면, 당신이 판단하고 행동합니다. 시스템은 절대 지원서를 자동 제출하지 않습니다 -- 최종 결정은 항상 당신의 몫 |
 | **파이프라인 무결성** | 자동 병합, 중복 제거, 상태 정규화, 헬스 체크 |
@@ -91,10 +91,11 @@ cp templates/portals.example.yml portals.yml       # 기업 목록 커스터마�
 # 4. 이력서 추가
 # 프로젝트 루트에 'cv.md' 파일을 생성하고 마크다운으로 이력서를 작성하세요.
 
-# 5. Claude로 개인화
-claude   # 이 디렉토리에서 Claude Code 실행
+# 5. 이 디렉토리에서 호환되는 에이전트 열기
+claude   # Claude Code
+gemini   # Gemini CLI
 
-# Claude에게 시스템을 맞춤 설정해달라고 요청:
+# 에이전트에게 시스템을 맞춤 설정해달라고 요청:
 # "Change the archetypes to backend engineering roles"
 # "Translate the modes to English"
 # "Add these 5 companies to portals.yml"
@@ -104,7 +105,7 @@ claude   # 이 디렉토리에서 Claude Code 실행
 # 채용 공고 URL을 붙여넣거나 /career-ops 실행
 ```
 
-> **이 시스템은 Claude가 직접 커스터마이즈하도록 설계되었습니다.** 모드, 아키타입, 스코어링 가중치, 협상 스크립트 -- 그냥 요청하세요. Claude가 사용하는 파일을 직접 읽기 때문에, 무엇을 수정해야 하는지 정확히 알고 있습니다.
+> **이 시스템은 에이전트가 저장소 안에서 직접 커스터마이즈하도록 설계되었습니다.** 모드, 아키타입, 스코어링 가중치, 협상 스크립트는 버전 관리되는 파일에서 바로 수정할 수 있습니다.
 
 자세한 설정 가이드는 [docs/SETUP.md](docs/SETUP.md)를 참고하세요.
 
@@ -181,7 +182,7 @@ go build -o career-dashboard .
 
 ```
 career-ops/
-├── CLAUDE.md                    # 에이전트 지시사항
+├── AGENTS.md                    # 정식 에이전트 지시사항
 ├── cv.md                        # 내 이력서 (직접 생성)
 ├── article-digest.md            # 주요 성과 정리 (선택)
 ├── config/
@@ -211,13 +212,13 @@ career-ops/
 
 ## Tech Stack
 
-![Claude Code](https://img.shields.io/badge/Claude_Code-000?style=flat&logo=anthropic&logoColor=white)
+![AI Agents](https://img.shields.io/badge/AI_Agents-0F172A?style=flat&logo=robotframework&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat&logo=node.js&logoColor=white)
 ![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=flat&logo=playwright&logoColor=white)
 ![Go](https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white)
 ![Bubble Tea](https://img.shields.io/badge/Bubble_Tea-FF75B5?style=flat&logo=go&logoColor=white)
 
-- **에이전트**: Claude Code + 커스텀 스킬 및 모드
+- **에이전트 계층**: `AGENTS.md`와 선택적 어댑터를 사용하는 호환 에이전트
 - **PDF**: Playwright/Puppeteer + HTML 템플릿
 - **스캐너**: Playwright + Greenhouse API + WebSearch
 - **대시보드**: Go + Bubble Tea + Lipgloss (Catppuccin Mocha 테마)

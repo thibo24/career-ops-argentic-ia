@@ -1,11 +1,12 @@
 # Codex Setup
 
-Career-Ops supports Codex through the root `AGENTS.md` file.
+Career-Ops supports Codex through the root `AGENTS.md` file, which is the
+canonical source for routing, onboarding, ethical rules, and pipeline behavior.
 
-If your Codex client reads project instructions automatically, `AGENTS.md`
-is enough for routing and behavior. Codex should reuse the same checked-in
-mode files, templates, tracker flow, and scripts that already power the
-Claude workflow.
+If your Codex client reads project instructions automatically, `AGENTS.md` is
+enough to use the shared Career-Ops core. Codex should route into the same
+checked-in mode files, templates, tracker flow, and scripts used by the other
+agent adapters.
 
 ## Prerequisites
 
@@ -43,9 +44,8 @@ npx playwright install chromium
 | Training / certification review | `modes/training.md` |
 | Project evaluation | `modes/project.md` |
 
-The key point: Codex support is additive. It should route into the existing
-Career-Ops modes and scripts rather than introducing a parallel automation
-layer.
+The key point: Codex is an adapter around the shared repo core, not a separate
+automation layer.
 
 ## Behavioral Rules
 

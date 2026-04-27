@@ -1,25 +1,27 @@
 # Mode: batch — Mass Processing of Jobs
 
-Two usage modes: **conductor --chrome** (navigates portals in real time) or **standalone** (script for URLs already collected).
+Two usage modes: **browser conductor** (navigates portals in real time) or
+**standalone** (script for URLs already collected).
 
 ## Architecture
 
 ```text
-Claude Conductor (claude --chrome --dangerously-skip-permissions)
+Agent Conductor (visible browser optional)
   │
   │  Chrome: navigates portals (logged-in sessions)
   │  Reads DOM directly — the user sees everything in real time
   │
   ├─ Job 1: reads JD from DOM + URL
-  │    └─► claude -p worker → report .md + PDF + tracker-line
+  │    └─► configured runner worker → report .md + PDF + tracker-line
   │
   ├─ Job 2: click next, read JD + URL
-  │    └─► claude -p worker → report .md + PDF + tracker-line
+  │    └─► configured runner worker → report .md + PDF + tracker-line
   │
   └─ End: merge tracker-additions → applications.md + summary
 ```
 
-Each worker is a child `claude -p` with a clean 200K token context. The conductor only orchestrates.
+Each worker uses the configured runner from `batch/batch-runner.sh`. The
+conductor only orchestrates.
 
 ## Files
 
@@ -33,7 +35,7 @@ batch/
   tracker-additions/            # Tracker lines (gitignored)
 ```
 
-## Mode A: Conductor --chrome
+## Mode A: Browser conductor
 
 1. **Read state**: `batch/batch-state.tsv` → identify what has already been processed
 2. **Navigate portal**: Chrome → search URL
@@ -41,13 +43,13 @@ batch/
 4. **For each pending URL**:
    a. Chrome: click on the job → read JD text from the DOM
    b. Save JD to `/tmp/batch-jd-{id}.txt`
-   c. Calculate next sequential REPORT_NUM
-   d. Execute via Bash:
+   c. Calculate the next sequential REPORT_NUM
+   d. Execute via Bash using the configured runner:
 
       ```bash
-      claude -p --dangerously-skip-permissions \
-        --append-system-prompt-file batch/batch-prompt.md \
-        "Process this job. URL: {url}. JD: /tmp/batch-jd-{id}.txt. Report: {num}. ID: {id}"
+      BATCH_AGENT_RUNNER_NAME='Codex CLI' \
+      BATCH_AGENT_RUNNER_TEMPLATE='codex exec --system-file {{PROMPT_FILE}} --prompt {{USER_PROMPT}}' \
+      ./batch/batch-runner.sh
       ```
 
    e. Update `batch-state.tsv` (completed/failed + score + report_num)
@@ -69,6 +71,10 @@ Options:
 - `--parallel N` — N workers in parallel
 - `--max-retries N` — attempts per job (default: 2)
 
+Relevant environment variables:
+- `BATCH_AGENT_RUNNER_NAME` — friendly runner name for logs
+- `BATCH_AGENT_RUNNER_TEMPLATE` — command template with `{{PROMPT_FILE}}` and `{{USER_PROMPT}}`
+
 ## batch-state.tsv Format
 
 ```text
@@ -84,9 +90,10 @@ id	url	status	started_at	completed_at	report_num	score	error	retries
 - Lock file (`batch-runner.pid`) prevents double execution
 - Each worker is independent: failure in job #47 does not affect the others
 
-## Workers (claude -p)
+## Workers
 
-Each worker receives `batch-prompt.md` as a system prompt. It is self-contained.
+Each worker receives `batch-prompt.md` as a system prompt through the
+configured runner. It is self-contained.
 
 The worker produces:
 1. `.md` report in `reports/`

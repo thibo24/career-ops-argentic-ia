@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Claude Code](https://claude.ai/code) installed and configured
+- A compatible AI agent or coding CLI that can work from this repository
 - Node.js 18+ (for PDF generation and utility scripts)
 - (Optional) Go 1.21+ (for the dashboard TUI)
 
@@ -44,13 +44,16 @@ Edit `portals.yml`:
 
 ### 5. Start using
 
-Open Claude Code in this directory:
+Open a compatible agent in this directory:
 
 ```bash
-claude
+claude   # Claude Code
+gemini   # Gemini CLI
+# or open Codex / OpenCode in this repo if they already read project instructions
 ```
 
-Then paste a job offer URL or description. Career-ops will automatically evaluate it, generate a report, create a tailored PDF, and track it.
+Then paste a job offer URL or description. Career-ops will automatically
+evaluate it, generate a report, create a tailored PDF, and track it.
 
 ## Available Commands
 

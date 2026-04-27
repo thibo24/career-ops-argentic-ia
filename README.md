@@ -13,10 +13,11 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/AI_Agents-0F172A?style=flat&logo=robotframework&logoColor=white" alt="AI Agents">
   <img src="https://img.shields.io/badge/Claude_Code-000?style=flat&logo=anthropic&logoColor=white" alt="Claude Code">
   <img src="https://img.shields.io/badge/OpenCode-111827?style=flat&logo=terminal&logoColor=white" alt="OpenCode">
   <img src="https://img.shields.io/badge/Gemini_CLI-4285F4?style=flat&logo=google&logoColor=white" alt="Gemini CLI">
-  <img src="https://img.shields.io/badge/Codex_(soon)-6B7280?style=flat&logo=openai&logoColor=white" alt="Codex">
+  <img src="https://img.shields.io/badge/Codex-6B7280?style=flat&logo=openai&logoColor=white" alt="Codex">
   <img src="https://img.shields.io/badge/Node.js-339933?style=flat&logo=node.js&logoColor=white" alt="Node.js">
   <img src="https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white" alt="Go">
   <img src="https://img.shields.io/badge/Playwright-2EAD33?style=flat&logo=playwright&logoColor=white" alt="Playwright">
@@ -46,7 +47,9 @@
 
 ## What Is This
 
-Career-Ops turns any AI coding CLI into a full job search command center. Instead of manually tracking applications in a spreadsheet, you get an AI-powered pipeline that:
+Career-Ops turns a compatible AI agent or coding CLI into a full job search
+command center. Instead of manually tracking applications in a spreadsheet, you
+get an AI-powered pipeline that:
 
 - **Evaluates offers** with a structured A-F scoring system (10 weighted dimensions)
 - **Generates tailored PDFs** -- ATS-optimized CVs customized per job description
@@ -56,7 +59,9 @@ Career-Ops turns any AI coding CLI into a full job search command center. Instea
 
 > **Important: This is NOT a spray-and-pray tool.** Career-ops is a filter -- it helps you find the few offers worth your time out of hundreds. The system strongly recommends against applying to anything scoring below 4.0/5. Your time is valuable, and so is the recruiter's. Always review before submitting.
 
-Career-ops is agentic: Claude Code navigates career pages with Playwright, evaluates fit by reasoning about your CV vs the job description (not keyword matching), and adapts your resume per listing.
+Career-ops is agentic: a compatible AI agent can navigate career pages with
+Playwright, evaluate fit by reasoning about your CV vs the job description (not
+keyword matching), and adapt your resume per listing.
 
 > **Heads up: the first evaluations won't be great.** The system doesn't know you yet. Feed it context -- your CV, your career story, your proof points, your preferences, what you're good at, what you want to avoid. The more you nurture it, the better it gets. Think of it as onboarding a new recruiter: the first week they need to learn about you, then they become invaluable.
 
@@ -72,7 +77,7 @@ Built by someone who used it to evaluate 740+ job offers, generate 100+ tailored
 | **Negotiation Scripts** | Salary negotiation frameworks, geographic discount pushback, competing offer leverage |
 | **ATS PDF Generation** | Keyword-injected CVs with Space Grotesk + DM Sans design |
 | **Portal Scanner** | 45+ companies pre-configured (Anthropic, OpenAI, ElevenLabs, Retool, n8n...) + custom queries across Ashby, Greenhouse, Lever, Wellfound |
-| **Batch Processing** | Parallel evaluation with `claude -p` workers |
+| **Batch Processing** | Parallel evaluation with a configurable agent runner |
 | **Dashboard TUI** | Terminal UI to browse, filter, and sort your pipeline |
 | **Human-in-the-Loop** | AI evaluates and recommends, you decide and act. The system never submits an application -- you always have the final call |
 | **Pipeline Integrity** | Automated merge, dedup, status normalization, health checks |
@@ -95,10 +100,12 @@ cp templates/portals.example.yml portals.yml       # Customize companies
 # 4. Add your CV
 # Create cv.md in the project root with your CV in markdown
 
-# 5. Personalize with Claude
-claude   # Open Claude Code in this directory
+# 5. Open a compatible agent in this directory
+claude   # Claude Code
+gemini   # Gemini CLI
+# or open Codex / OpenCode in this repo if they already read project instructions
 
-# Then ask Claude to adapt the system to you:
+# Then ask your agent to adapt the system to you:
 # "Change the archetypes to backend engineering roles"
 # "Translate the modes to English"
 # "Add these 5 companies to portals.yml"
@@ -108,15 +115,32 @@ claude   # Open Claude Code in this directory
 # Paste a job URL or run /career-ops
 ```
 
-> **The system is designed to be customized by Claude itself.** Modes, archetypes, scoring weights, negotiation scripts -- just ask Claude to change them. It reads the same files it uses, so it knows exactly what to edit.
+> **The system is designed to be customized in-repo by your agent.** Modes,
+> archetypes, scoring weights, negotiation scripts -- ask the active agent to
+> change them directly. The repo's checked-in files are the source of truth.
 
 See [docs/SETUP.md](docs/SETUP.md) for the full setup guide.
 
-## Gemini CLI Integration
+## Agent Adapters
 
-Career-ops supports [Gemini CLI](https://github.com/google-gemini/gemini-cli) natively — the same way it supports Claude Code and OpenCode. All 15 slash commands are available, using the same `modes/*.md` evaluation logic.
+Career-ops is repo-first. The canonical routing, onboarding rules, and safety
+constraints live in `AGENTS.md`. Runtime-specific adapters sit on top of that
+shared core.
 
-### Option A — Native Gemini CLI (Recommended)
+| Adapter | Entry point | Notes |
+|---------|-------------|-------|
+| Claude Code | `CLAUDE.md`, `.claude/skills/career-ops/SKILL.md` | Claude-specific adapter over the shared core |
+| Gemini CLI | `GEMINI.md`, `.gemini/commands/*.toml` | Same mode files exposed as Gemini commands |
+| OpenCode | `.opencode/commands/*` | Command wrappers around the shared repo core |
+| Codex | `AGENTS.md`, `docs/CODEX.md` | Repo-native instructions without a separate prompt layer |
+
+### Gemini CLI Adapter
+
+Career-ops supports [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+natively. All 15 Gemini commands route into the same `modes/*.md` logic as the
+other adapters.
+
+#### Option A — Native Gemini CLI (Recommended)
 
 ```bash
 # 1. Install Gemini CLI
@@ -130,7 +154,7 @@ gemini auth
 cd career-ops
 gemini
 
-# 4. Use slash commands just like Claude Code
+# 4. Use Gemini commands
 /career-ops "Senior AI Engineer at Anthropic..."
 /career-ops-evaluate --file ./jds/openai.txt
 /career-ops-scan
@@ -140,7 +164,7 @@ gemini
 
 The `GEMINI.md` file is auto-loaded as context. All 15 commands are defined in `.gemini/commands/*.toml`.
 
-### Option B — Standalone API Script (No CLI install needed)
+#### Option B — Standalone API Script (No CLI install needed)
 
 ```bash
 # 1. Get a free API key at https://aistudio.google.com/apikey
@@ -177,7 +201,11 @@ Career-ops is a single slash command with multiple modes:
 /career-ops project        → Evaluate a portfolio project
 ```
 
-Or just paste a job URL or description directly -- career-ops auto-detects it and runs the full pipeline.
+Or just paste a job URL or description directly -- career-ops auto-detects it
+and runs the full pipeline.
+
+If your agent runtime does not support slash commands, ask in plain language and
+route through `AGENTS.md`.
 
 ## How It Works
 
@@ -232,13 +260,15 @@ Features: 6 filter tabs, 4 sort modes, grouped/flat view, lazy-loaded previews, 
 
 ```
 career-ops/
-├── CLAUDE.md                    # Agent instructions
+├── AGENTS.md                    # Canonical agent instructions
+├── CLAUDE.md                    # Claude adapter
 ├── cv.md                        # Your CV (create this)
 ├── article-digest.md            # Your proof points (optional)
 ├── config/
 │   └── profile.example.yml      # Template for your profile
 ├── modes/                       # 14 skill modes
-│   ├── _shared.md               # Shared context (customize this)
+│   ├── _shared.md               # Shared system defaults
+│   ├── _profile.md              # User-specific overrides
 │   ├── oferta.md                # Single evaluation
 │   ├── pdf.md                   # PDF generation
 │   ├── scan.md                  # Portal scanner
@@ -250,25 +280,28 @@ career-ops/
 │   └── states.yml               # Canonical statuses
 ├── batch/
 │   ├── batch-prompt.md          # Self-contained worker prompt
-│   └── batch-runner.sh          # Orchestrator script
+│   └── batch-runner.sh          # Orchestrator with configurable agent runner
 ├── dashboard/                   # Go TUI pipeline viewer
 ├── data/                        # Your tracking data (gitignored)
 ├── reports/                     # Evaluation reports (gitignored)
 ├── output/                      # Generated PDFs (gitignored)
 ├── fonts/                       # Space Grotesk + DM Sans
 ├── docs/                        # Setup, customization, architecture
+├── .claude/                     # Claude adapter assets
+├── .gemini/                     # Gemini adapter assets
+├── .opencode/                   # OpenCode adapter assets
 └── examples/                    # Sample CV, report, proof points
 ```
 
 ## Tech Stack
 
-![Claude Code](https://img.shields.io/badge/Claude_Code-000?style=flat&logo=anthropic&logoColor=white)
+![AI Agents](https://img.shields.io/badge/AI_Agents-0F172A?style=flat&logo=robotframework&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat&logo=node.js&logoColor=white)
 ![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=flat&logo=playwright&logoColor=white)
 ![Go](https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white)
 ![Bubble Tea](https://img.shields.io/badge/Bubble_Tea-FF75B5?style=flat&logo=go&logoColor=white)
 
-- **Agent**: Claude Code with custom skills and modes
+- **Agent layer**: Compatible AI agent via `AGENTS.md` plus optional adapters
 - **PDF**: Playwright/Puppeteer + HTML template
 - **Scanner**: Playwright + Greenhouse API + WebSearch
 - **Dashboard**: Go + Bubble Tea + Lipgloss (Catppuccin Mocha theme)

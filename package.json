@@ -1,9 +1,10 @@
 {
   "name": "career-ops",
   "version": "1.0.0",
-  "description": "AI-powered job search pipeline built on Claude Code",
+  "description": "AI-powered job search pipeline for compatible coding agents",
   "scripts": {
     "doctor": "node doctor.mjs",
+    "pipeline": "bash ./run-pipeline.sh",
     "verify": "node verify-pipeline.mjs",
     "normalize": "node normalize-statuses.mjs",
     "dedup": "node dedup-tracker.mjs",
@@ -20,7 +21,8 @@
   "keywords": [
     "ai",
     "job-search",
-    "claude-code",
+    "ai-agent",
+    "coding-agent",
     "career",
     "automation"
   ],

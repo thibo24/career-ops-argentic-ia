@@ -17,11 +17,11 @@ Si la plupart de tes offres sont en anglais, reste sur les modes standard dans `
 
 ### Option 1 -- Par session
 
-Dis a Claude en debut de session :
+Dis a l'agent en debut de session :
 
 > "Utilise les modes francais sous `modes/fr/`."
 
-Claude lira alors les fichiers de ce dossier au lieu de `modes/`.
+L'agent lira alors les fichiers de ce dossier au lieu de `modes/`.
 
 ### Option 2 -- En permanence
 
@@ -33,7 +33,7 @@ language:
   modes_dir: modes/fr
 ```
 
-Rappelle-le a Claude lors de ta premiere session ("Regarde dans `profile.yml`, j'ai configure `language.modes_dir`"). Claude utilisera automatiquement les modes francais.
+Rappelle-le a l'agent lors de ta premiere session ("Regarde dans `profile.yml`, j'ai configure `language.modes_dir`"). L'agent utilisera automatiquement les modes francais.
 
 ## Quels modes sont traduits ?
 

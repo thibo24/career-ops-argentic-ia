@@ -1,6 +1,8 @@
 # Batch Processing
 
-Process multiple job offers in parallel via `claude -p` workers. Each worker runs the full evaluation pipeline (A-F report + PDF + tracker line) autonomously.
+Process multiple job offers in parallel via a configurable agent runner. Each
+worker runs the full evaluation pipeline (A-F report + PDF + tracker line)
+autonomously.
 
 ## Quick Start
 
@@ -30,7 +32,7 @@ Process multiple job offers in parallel via `claude -p` workers. Each worker run
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--parallel N` | `1` | Number of concurrent `claude -p` workers |
+| `--parallel N` | `1` | Number of concurrent workers |
 | `--dry-run` | off | Preview pending offers without processing |
 | `--retry-failed` | off | Only retry offers marked as `failed` in state |
 | `--start-from N` | `0` | Skip offers with ID below N |
@@ -49,10 +51,38 @@ batch/
     merged/                # TSVs already merged into applications.md
 ```
 
+## Agent Runner
+
+`batch-runner.sh` uses `BATCH_AGENT_RUNNER_TEMPLATE` to launch workers.
+
+Required placeholders:
+- `{{PROMPT_FILE}}` → resolved `batch-prompt.md` file for that job
+- `{{USER_PROMPT}}` → user prompt containing URL, report number, and batch ID
+
+Optional placeholder:
+- `{{PROJECT_DIR}}` → repository root
+
+Defaults:
+
+```bash
+export BATCH_AGENT_RUNNER_NAME="Claude CLI"
+export BATCH_AGENT_RUNNER_TEMPLATE='claude -p --dangerously-skip-permissions --append-system-prompt-file {{PROMPT_FILE}} {{USER_PROMPT}}'
+```
+
+Example custom runner:
+
+```bash
+export BATCH_AGENT_RUNNER_NAME="Custom Agent"
+export BATCH_AGENT_RUNNER_TEMPLATE='my-agent --system-file {{PROMPT_FILE}} --prompt {{USER_PROMPT}}'
+./batch/batch-runner.sh --parallel 2
+```
+
 ## How It Works
 
 1. **batch-runner.sh** reads `batch-input.tsv` and `batch-state.tsv` to determine which offers need processing.
-2. For each pending offer, it assigns a report number and launches a `claude -p` worker with `batch-prompt.md` as the system prompt (placeholders like `{{URL}}`, `{{REPORT_NUM}}` are resolved).
+2. For each pending offer, it assigns a report number and launches a worker
+   using `BATCH_AGENT_RUNNER_TEMPLATE`, with `batch-prompt.md` resolved for that
+   offer (`{{URL}}`, `{{REPORT_NUM}}`, and related placeholders are filled in).
 3. Each worker evaluates the offer, writes a report to `reports/`, generates a PDF to `output/`, and writes a tracker TSV to `tracker-additions/`.
 4. After all workers finish, batch-runner calls `merge-tracker.mjs` to merge TSVs into `data/applications.md` and runs `verify-pipeline.mjs` to check integrity.
 
@@ -75,6 +105,6 @@ A PID-based lock file (`batch-runner.pid`) prevents concurrent batch runs. If a 
 
 ## Prerequisites
 
-- `claude` CLI in PATH (Claude Max subscription for default model)
+- A compatible agent runner in PATH
 - Node.js >= 18, Playwright chromium installed (`npm run doctor` to verify)
 - `batch-input.tsv` with at least one offer

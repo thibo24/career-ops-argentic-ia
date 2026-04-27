@@ -13,9 +13,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Claude_Code-000?style=flat&logo=anthropic&logoColor=white" alt="Claude Code">
+  <img src="https://img.shields.io/badge/AI_Agents-0F172A?style=flat&logo=robotframework&logoColor=white" alt="AI Agents">
   <img src="https://img.shields.io/badge/OpenCode-111827?style=flat&logo=terminal&logoColor=white" alt="OpenCode">
-  <img src="https://img.shields.io/badge/Codex_(soon)-6B7280?style=flat&logo=openai&logoColor=white" alt="Codex">
+  <img src="https://img.shields.io/badge/Codex-6B7280?style=flat&logo=openai&logoColor=white" alt="Codex">
   <img src="https://img.shields.io/badge/Node.js-339933?style=flat&logo=node.js&logoColor=white" alt="Node.js">
   <img src="https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white" alt="Go">
   <img src="https://img.shields.io/badge/Playwright-2EAD33?style=flat&logo=playwright&logoColor=white" alt="Playwright">
@@ -54,7 +54,7 @@ Career-Ops 能將任何 AI 程式碼 CLI 轉化為完整的求職指揮中心。
 
 > **重要：這不是廣撒網的工具。** career-ops 是一個篩選器 — 它幫助你從數百份職缺中找出真正值得投入的少數機會。本系統強烈建議不要應徵評分低於 4.0/5 的職缺。你的時間很寶貴，招募人員的時間也是。送出前務必仔細審閱。
 
-career-ops 具有代理能力：Claude Code 透過 Playwright 瀏覽求職頁面，藉由推理你的履歷與職缺描述的契合度（而非關鍵字比對）進行評估，並針對每份職缺調整你的履歷。
+career-ops 具有代理能力：相容的 AI 代理可透過 Playwright 瀏覽求職頁面，藉由推理你的履歷與職缺描述的契合度（而非關鍵字比對）進行評估，並針對每份職缺調整你的履歷。
 
 > **注意：最初幾次評估的品質可能不盡理想。** 因為系統還不了解你。請提供更多背景資訊 — 你的履歷、職涯故事、成就佐證、個人偏好、你的專長以及希望避免的事情。你餵給它的資訊越多，它就越準確。把它當作招募新人的招募顧問：第一週需要學習認識你，之後就會成為不可或缺的夥伴。
 
@@ -70,7 +70,7 @@ career-ops 具有代理能力：Claude Code 透過 Playwright 瀏覽求職頁面
 | **薪資談判腳本** | 薪資談判框架、地區薪資折扣反駁話術、競爭 Offer 運用策略 |
 | **ATS PDF 生成** | 注入關鍵字的履歷，採用 Space Grotesk + DM Sans 設計 |
 | **平台掃描器** | 預設超過 45 家企業（Anthropic、OpenAI、ElevenLabs、Retool、n8n...）+ 跨 Ashby、Greenhouse、Lever、Wellfound 的自訂查詢 |
-| **批次處理** | 使用 `claude -p` 工作器並行評估 |
+| **批次處理** | 使用可設定的代理 runner 並行評估 |
 | **儀表板 TUI** | 在終端機 UI 中瀏覽、篩選及排序你的求職管道 |
 | **人機協作** | AI 負責評估與建議，你負責決策與行動。系統絕不自動送出應徵 — 最終決定永遠在你手上 |
 | **管道完整性** | 自動合併、去重、狀態正規化、健康檢查 |
@@ -93,10 +93,11 @@ cp templates/portals.example.yml portals.yml       # 自訂目標企業
 # 4. 加入你的履歷
 # 在專案根目錄建立 cv.md，以 Markdown 格式撰寫你的履歷
 
-# 5. 透過 Claude 個人化設定
-claude   # 在此目錄開啟 Claude Code
+# 5. 在此目錄開啟相容的代理
+claude   # Claude Code
+gemini   # Gemini CLI
 
-# 然後請 Claude 幫你調整系統：
+# 然後請你的代理幫你調整系統：
 # 「把職位類型改成後端工程師相關職缺」
 # 「把模式翻譯成繁體中文」
 # 「把這 5 家公司加入 portals.yml」
@@ -106,7 +107,7 @@ claude   # 在此目錄開啟 Claude Code
 # 貼上職缺 URL 或執行 /career-ops
 ```
 
-> **這個系統設計上就是讓 Claude 來客製化的。** 模式、職位類型、評分權重、談判腳本 — 直接告訴 Claude 要修改什麼，它就會動手。Claude 讀取的是它自己使用的相同檔案，所以它確切知道要編輯哪裡。
+> **這個系統設計上就是讓代理直接在 repo 內客製化。** 模式、職位類型、評分權重、談判腳本都可以直接在版本管理的檔案中調整。
 
 完整設定指南請參閱 [docs/SETUP.md](docs/SETUP.md)。
 
@@ -184,7 +185,7 @@ go build -o career-dashboard .
 
 ```
 career-ops/
-├── CLAUDE.md                    # 代理指令
+├── AGENTS.md                    # 正式代理指令
 ├── cv.md                        # 你的履歷（需自行建立）
 ├── article-digest.md            # 你的成就佐證（選填）
 ├── config/
@@ -214,13 +215,13 @@ career-ops/
 
 ## 技術堆疊
 
-![Claude Code](https://img.shields.io/badge/Claude_Code-000?style=flat&logo=anthropic&logoColor=white)
+![AI Agents](https://img.shields.io/badge/AI_Agents-0F172A?style=flat&logo=robotframework&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat&logo=node.js&logoColor=white)
 ![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=flat&logo=playwright&logoColor=white)
 ![Go](https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white)
 ![Bubble Tea](https://img.shields.io/badge/Bubble_Tea-FF75B5?style=flat&logo=go&logoColor=white)
 
-- **代理**：Claude Code，附自訂技能與模式
+- **代理層**：透過 `AGENTS.md` 與可選轉接器運作的相容代理
 - **PDF**：Playwright/Puppeteer + HTML 範本
 - **掃描器**：Playwright + Greenhouse API + WebSearch
 - **儀表板**：Go + Bubble Tea + Lipgloss（Catppuccin Mocha 主題）

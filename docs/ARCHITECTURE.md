@@ -4,8 +4,8 @@
 
 ```
                     ┌─────────────────────────────────┐
-                    │         Claude Code Agent        │
-                    │   (reads CLAUDE.md + modes/*.md) │
+                    │      Compatible AI Agent        │
+                    │    (reads AGENTS.md + modes/*)  │
                     └──────────┬──────────────────────┘
                                │
             ┌──────────────────┼──────────────────────┐
@@ -15,10 +15,11 @@
      │ (auto-pipe)  │   │  (scan.md)  │   │   (batch-runner)   │
      └──────┬──────┘   └──────┬──────┘   └───────────┬────────┘
             │                  │                       │
-            │           ┌──────▼──────┐          ┌────▼─────┐
-            │           │ pipeline.md │          │ N workers│
-            │           │ (URL inbox) │          │ (claude -p)
-            │           └─────────────┘          └────┬─────┘
+            │           ┌──────▼──────┐          ┌────▼────────────┐
+            │           │ pipeline.md │          │ N workers       │
+            │           │ (URL inbox) │          │ (configurable   │
+            │           └─────────────┘          │ agent runner)   │
+            │                                     └────┬────────────┘
             │                                          │
      ┌──────▼──────────────────────────────────────────▼──────┐
      │                    Output Pipeline                      │
@@ -56,19 +57,21 @@
 The batch system processes multiple offers in parallel:
 
 ```
-batch-input.tsv    →  batch-runner.sh  →  N × claude -p workers
-(id, url, source)     (orchestrator)       (self-contained prompt)
+batch-input.tsv    →  batch-runner.sh  →  N × agent workers
+(id, url, source)     (orchestrator)       (runner template)
                            │
                     batch-state.tsv
                     (tracks progress)
 ```
 
-Each worker is a headless Claude instance (`claude -p`) that receives the full `batch-prompt.md` as context. Workers produce:
+Each worker is launched through `BATCH_AGENT_RUNNER_TEMPLATE` and receives the
+resolved `batch-prompt.md` as context. Workers produce:
 - Report .md
 - PDF
 - Tracker TSV line
 
-The orchestrator manages parallelism, state, retries, and resume.
+The orchestrator manages parallelism, state, retries, resume, and runner
+selection.
 
 ## Data Flow
 

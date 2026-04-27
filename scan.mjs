@@ -3,11 +3,12 @@
 /**
  * scan.mjs — Zero-token portal scanner
  *
- * Fetches Greenhouse, Ashby, and Lever APIs directly, applies title
- * filters from portals.yml, deduplicates against existing history,
+ * Fetches Greenhouse, Ashby, and Lever APIs directly, optionally runs
+ * lightweight web search discovery for portals.yml search_queries,
+ * applies title filters, deduplicates against existing history,
  * and appends new offers to pipeline.md + scan-history.tsv.
  *
- * Zero Claude API tokens — pure HTTP + JSON.
+ * Zero Claude API tokens — pure HTTP + JSON/HTML.
  *
  * Usage:
  *   node scan.mjs                  # scan all enabled companies
@@ -16,12 +17,14 @@
  */
 
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from 'fs';
+import { chromium } from 'playwright';
 import yaml from 'js-yaml';
 const parseYaml = yaml.load;
 
 // ── Config ──────────────────────────────────────────────────────────
 
 const PORTALS_PATH = 'portals.yml';
+const PROFILE_PATH = 'config/profile.yml';
 const SCAN_HISTORY_PATH = 'data/scan-history.tsv';
 const PIPELINE_PATH = 'data/pipeline.md';
 const APPLICATIONS_PATH = 'data/applications.md';
@@ -31,6 +34,13 @@ mkdirSync('data', { recursive: true });
 
 const CONCURRENCY = 10;
 const FETCH_TIMEOUT_MS = 10_000;
+const PLAYWRIGHT_TIMEOUT_MS = 30_000;
+const PLAYWRIGHT_SETTLE_MS = 3_000;
+const SEARCH_RESULTS_LIMIT = 20;
+const DEFAULT_HEADERS = {
+  'user-agent': 'career-ops-scan/1.0 (+https://github.com/santifer/career-ops)',
+  'accept-language': 'en-US,en;q=0.9,fr-FR;q=0.8,fr;q=0.7',
+};
 
 // ── API detection ───────────────────────────────────────────────────
 
@@ -112,7 +122,10 @@ async function fetchJson(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: DEFAULT_HEADERS,
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } finally {
@@ -120,18 +133,244 @@ async function fetchJson(url) {
   }
 }
 
-// ── Title filter ────────────────────────────────────────────────────
+// ── Filters ─────────────────────────────────────────────────────────
 
-function buildTitleFilter(titleFilter) {
-  const positive = (titleFilter?.positive || []).map(k => k.toLowerCase());
-  const negative = (titleFilter?.negative || []).map(k => k.toLowerCase());
+function buildKeywordFilter(filterConfig) {
+  const positive = (filterConfig?.positive || []).map(k => k.toLowerCase());
+  const negative = (filterConfig?.negative || []).map(k => k.toLowerCase());
 
-  return (title) => {
-    const lower = title.toLowerCase();
+  return (value) => {
+    const lower = (value || '').toLowerCase();
+    if (!lower) {
+      return positive.length === 0;
+    }
+
     const hasPositive = positive.length === 0 || positive.some(k => lower.includes(k));
     const hasNegative = negative.some(k => lower.includes(k));
     return hasPositive && !hasNegative;
   };
+}
+
+function loadProfileConfig() {
+  if (!existsSync(PROFILE_PATH)) {
+    return {};
+  }
+
+  try {
+    return parseYaml(readFileSync(PROFILE_PATH, 'utf-8')) || {};
+  } catch {
+    return {};
+  }
+}
+
+function uniqStrings(values) {
+  return [...new Set((values || []).filter(Boolean).map(v => `${v}`.trim()).filter(Boolean))];
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildRuntimePreferences(profile) {
+  const searchPrefs = profile?.search_preferences || {};
+  const location = profile?.location || {};
+
+  const preferredLocations = uniqStrings([
+    ...(searchPrefs.preferred_locations || []),
+    location.city,
+  ]);
+
+  const regionQuery = searchPrefs.search_region_query
+    || searchPrefs.preferred_region
+    || location.country
+    || 'France';
+
+  const linkedinLocation = searchPrefs.linkedin_location
+    || (location.city && location.country ? `${location.city}, ${location.country}` : null)
+    || 'France';
+
+  return {
+    regionQuery,
+    linkedinLocation,
+    preferredLocations,
+    excludedCompanyKeywords: uniqStrings(searchPrefs.excluded_company_keywords || []),
+  };
+}
+
+function expandQueryTemplate(query, runtimePrefs) {
+  return (query || '').replace(/\{\{REGION_QUERY\}\}/g, runtimePrefs.regionQuery);
+}
+
+function detectSearchProvider(searchQuery) {
+  const query = (searchQuery.query || '').toLowerCase();
+  if (query.includes('linkedin.com/jobs/view')) return 'linkedin';
+  if (query.includes('indeed.')) return 'indeed';
+  return null;
+}
+
+function inferSearchLocation(rawQuery, runtimePrefs) {
+  if (runtimePrefs.linkedinLocation) return runtimePrefs.linkedinLocation;
+  if (/\bparis\b/i.test(rawQuery)) return 'Paris, Ile-de-France, France';
+  return 'France';
+}
+
+function cleanSearchTerm(term, runtimePrefs) {
+  let cleaned = term
+    .replace(/site:[^\s]+/gi, ' ')
+    .replace(/\b(France|Paris|Remote|Remote-friendly|Ile-de-France|Île-de-France)\b/gi, ' ');
+
+  const userLocations = uniqStrings([
+    runtimePrefs.regionQuery,
+    ...runtimePrefs.preferredLocations,
+  ]).sort((a, b) => b.length - a.length);
+
+  for (const token of userLocations) {
+    cleaned = cleaned.replace(new RegExp(escapeRegex(token), 'gi'), ' ');
+  }
+
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
+
+function extractSearchTerms(rawQuery, runtimePrefs) {
+  const withoutSites = rawQuery.replace(/site:[^\s]+/gi, ' ');
+  const groups = withoutSites
+    .split(/\s+OR\s+/i)
+    .map(group => group.trim())
+    .filter(Boolean);
+
+  const terms = [];
+
+  for (const group of groups) {
+    const quoted = [...group.matchAll(/"([^"]+)"/g)]
+      .map(match => match[1].trim())
+      .filter(Boolean);
+
+    const term = cleanSearchTerm(quoted.length > 0 ? quoted.join(' ') : group, runtimePrefs);
+    if (term) terms.push(term);
+  }
+
+  if (terms.length === 0) {
+    const fallback = cleanSearchTerm(withoutSites, runtimePrefs);
+    if (fallback) terms.push(fallback);
+  }
+
+  return [...new Set(terms)].slice(0, 4);
+}
+
+function normalizeJobUrl(url, provider) {
+  try {
+    const parsed = new URL(url);
+    if (provider === 'linkedin' || provider === 'indeed') {
+      return `${parsed.origin}${parsed.pathname}`;
+    }
+    parsed.hash = '';
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+async function openSearchPage(page, url) {
+  await page.goto(url, {
+    waitUntil: 'domcontentloaded',
+    timeout: PLAYWRIGHT_TIMEOUT_MS,
+  });
+  await page.waitForTimeout(PLAYWRIGHT_SETTLE_MS);
+}
+
+async function runLinkedInSearch(page, searchQuery, runtimePrefs) {
+  const location = inferSearchLocation(searchQuery.query, runtimePrefs);
+  const terms = extractSearchTerms(searchQuery.query, runtimePrefs);
+  const results = [];
+  const seen = new Set();
+
+  for (const term of terms) {
+    const url = new URL('https://www.linkedin.com/jobs/search');
+    url.searchParams.set('keywords', term);
+    url.searchParams.set('location', location);
+
+    await openSearchPage(page, url.toString());
+    await page.waitForSelector('.base-card', { timeout: 10_000 }).catch(() => {});
+
+    const jobs = await page.evaluate((limit) => {
+      return Array.from(document.querySelectorAll('.base-card'))
+        .slice(0, limit)
+        .map((card) => ({
+          title: card.querySelector('.base-search-card__title')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+          company: card.querySelector('.base-search-card__subtitle')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+          location: card.querySelector('.job-search-card__location')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+          url: card.querySelector('a.base-card__full-link')?.href || '',
+        }))
+        .filter((job) => job.title && job.company && job.url);
+    }, SEARCH_RESULTS_LIMIT);
+
+    for (const job of jobs) {
+      const normalizedUrl = normalizeJobUrl(job.url, 'linkedin');
+      const key = `${normalizedUrl}::${job.title}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push({
+        ...job,
+        url: normalizedUrl,
+        source: searchQuery.name,
+      });
+    }
+  }
+
+  return results;
+}
+
+async function runIndeedSearch(page, searchQuery, runtimePrefs) {
+  const location = inferSearchLocation(searchQuery.query, runtimePrefs);
+  const terms = extractSearchTerms(searchQuery.query, runtimePrefs);
+  const results = [];
+  const seen = new Set();
+
+  for (const term of terms) {
+    const url = new URL('https://fr.indeed.com/jobs');
+    url.searchParams.set('q', term);
+    url.searchParams.set('l', location);
+
+    await openSearchPage(page, url.toString());
+
+    const state = await page.evaluate((limit) => {
+      const bodyText = document.body?.innerText?.slice(0, 2000) || '';
+      const blocked = /request blocked|you have been blocked|cloudflare/i.test(`${document.title}\n${bodyText}`);
+
+      const jobs = Array.from(document.querySelectorAll('a.jcs-JobTitle, a[data-jk], h2.jobTitle a'))
+        .slice(0, limit)
+        .map((anchor) => {
+          const card = anchor.closest('[data-jk], .job_seen_beacon, li, td, div') || anchor.parentElement;
+          return {
+            title: anchor.textContent?.replace(/\s+/g, ' ').trim() || '',
+            company: card?.querySelector('[data-testid="company-name"], .companyName, [class*="companyName"]')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+            location: card?.querySelector('[data-testid="text-location"], .companyLocation, [class*="companyLocation"]')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+            url: anchor.href || '',
+          };
+        })
+        .filter((job) => job.title && job.company && job.url);
+
+      return { blocked, bodyText, jobs };
+    }, SEARCH_RESULTS_LIMIT);
+
+    if (state.blocked) {
+      throw new Error('Indeed blocked by Cloudflare in Playwright');
+    }
+
+    for (const job of state.jobs) {
+      const normalizedUrl = normalizeJobUrl(job.url, 'indeed');
+      const key = `${normalizedUrl}::${job.title}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push({
+        ...job,
+        url: normalizedUrl,
+        source: searchQuery.name,
+      });
+    }
+  }
+
+  return results;
 }
 
 // ── Dedup ───────────────────────────────────────────────────────────
@@ -187,6 +426,10 @@ function loadSeenCompanyRoles() {
 
 function appendToPipeline(offers) {
   if (offers.length === 0) return;
+
+  if (!existsSync(PIPELINE_PATH)) {
+    writeFileSync(PIPELINE_PATH, '# Pipeline\n\n## Pendientes\n\n## Procesadas\n', 'utf-8');
+  }
 
   let text = readFileSync(PIPELINE_PATH, 'utf-8');
 
@@ -262,8 +505,28 @@ async function main() {
   }
 
   const config = parseYaml(readFileSync(PORTALS_PATH, 'utf-8'));
+  const profile = loadProfileConfig();
+  const runtimePrefs = buildRuntimePreferences(profile);
   const companies = config.tracked_companies || [];
-  const titleFilter = buildTitleFilter(config.title_filter);
+  const searchQueries = filterCompany
+    ? []
+    : (config.search_queries || [])
+      .filter(q => q.enabled !== false && q.query)
+      .map(q => ({ ...q, query: expandQueryTemplate(q.query, runtimePrefs) }));
+  const titleFilter = buildKeywordFilter(config.title_filter);
+  const companyFilter = buildKeywordFilter({
+    positive: config.company_filter?.positive || [],
+    negative: [
+      ...(config.company_filter?.negative || []),
+      ...runtimePrefs.excludedCompanyKeywords,
+    ],
+  });
+  const locationFilter = buildKeywordFilter({
+    positive: (config.location_filter?.positive && config.location_filter.positive.length > 0)
+      ? config.location_filter.positive
+      : runtimePrefs.preferredLocations,
+    negative: config.location_filter?.negative || [],
+  });
 
   // 2. Filter to enabled companies with detectable APIs
   const targets = companies
@@ -275,6 +538,7 @@ async function main() {
   const skippedCount = companies.filter(c => c.enabled !== false).length - targets.length;
 
   console.log(`Scanning ${targets.length} companies via API (${skippedCount} skipped — no API detected)`);
+  console.log(`Running ${searchQueries.length} portal search queries`);
   if (dryRun) console.log('(dry run — no files will be written)\n');
 
   // 3. Load dedup sets
@@ -289,6 +553,35 @@ async function main() {
   const newOffers = [];
   const errors = [];
 
+  function ingestJob(job) {
+    if (!titleFilter(job.title)) {
+      totalFiltered++;
+      return;
+    }
+    if (!companyFilter(job.company)) {
+      totalFiltered++;
+      return;
+    }
+    if (!locationFilter(job.location)) {
+      totalFiltered++;
+      return;
+    }
+    if (seenUrls.has(job.url)) {
+      totalDupes++;
+      return;
+    }
+
+    const key = `${job.company.toLowerCase()}::${job.title.toLowerCase()}`;
+    if (seenCompanyRoles.has(key)) {
+      totalDupes++;
+      return;
+    }
+
+    seenUrls.add(job.url);
+    seenCompanyRoles.add(key);
+    newOffers.push(job);
+  }
+
   const tasks = targets.map(company => async () => {
     const { type, url } = company._api;
     try {
@@ -297,23 +590,7 @@ async function main() {
       totalFound += jobs.length;
 
       for (const job of jobs) {
-        if (!titleFilter(job.title)) {
-          totalFiltered++;
-          continue;
-        }
-        if (seenUrls.has(job.url)) {
-          totalDupes++;
-          continue;
-        }
-        const key = `${job.company.toLowerCase()}::${job.title.toLowerCase()}`;
-        if (seenCompanyRoles.has(key)) {
-          totalDupes++;
-          continue;
-        }
-        // Mark as seen to avoid intra-scan dupes
-        seenUrls.add(job.url);
-        seenCompanyRoles.add(key);
-        newOffers.push({ ...job, source: `${type}-api` });
+        ingestJob({ ...job, source: `${type}-api` });
       }
     } catch (err) {
       errors.push({ company: company.name, error: err.message });
@@ -321,6 +598,53 @@ async function main() {
   });
 
   await parallelFetch(tasks, CONCURRENCY);
+
+  if (searchQueries.length > 0) {
+    const browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext({
+      locale: 'fr-FR',
+      userAgent: DEFAULT_HEADERS['user-agent'],
+      extraHTTPHeaders: DEFAULT_HEADERS,
+    });
+    const page = await context.newPage();
+    const providerFailures = new Map();
+
+    try {
+      for (const searchQuery of searchQueries) {
+        const provider = detectSearchProvider(searchQuery);
+
+        if (!provider) {
+          errors.push({ company: searchQuery.name, error: 'unsupported search provider in query' });
+          continue;
+        }
+
+        if (providerFailures.has(provider)) {
+          continue;
+        }
+
+        try {
+          const results = provider === 'linkedin'
+            ? await runLinkedInSearch(page, searchQuery, runtimePrefs)
+            : await runIndeedSearch(page, searchQuery, runtimePrefs);
+
+          totalFound += results.length;
+          for (const job of results) {
+            ingestJob(job);
+          }
+        } catch (err) {
+          const message = err.message || String(err);
+          errors.push({ company: searchQuery.name, error: message });
+
+          if (provider === 'indeed' && /cloudflare|blocked/i.test(message)) {
+            providerFailures.set(provider, message);
+          }
+        }
+      }
+    } finally {
+      await context.close();
+      await browser.close();
+    }
+  }
 
   // 5. Write results
   if (!dryRun && newOffers.length > 0) {
@@ -333,6 +657,7 @@ async function main() {
   console.log(`Portal Scan — ${date}`);
   console.log(`${'━'.repeat(45)}`);
   console.log(`Companies scanned:     ${targets.length}`);
+  console.log(`Queries executed:      ${searchQueries.length}`);
   console.log(`Total jobs found:      ${totalFound}`);
   console.log(`Filtered by title:     ${totalFiltered} removed`);
   console.log(`Duplicates:            ${totalDupes} skipped`);

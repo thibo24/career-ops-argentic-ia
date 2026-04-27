@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# career-ops batch runner — standalone orchestrator for claude -p workers
-# Reads batch-input.tsv, delegates each offer to a claude -p worker,
+# career-ops batch runner — standalone orchestrator for configurable agent workers
+# Reads batch-input.tsv, delegates each offer to an agent runner,
 # tracks state in batch-state.tsv for resumability.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,11 +28,12 @@ RETRY_FAILED=false
 START_FROM=0
 MAX_RETRIES=2
 MIN_SCORE=0
+BATCH_AGENT_RUNNER_NAME="${BATCH_AGENT_RUNNER_NAME:-Claude CLI}"
+BATCH_AGENT_RUNNER_TEMPLATE="${BATCH_AGENT_RUNNER_TEMPLATE:-claude -p --dangerously-skip-permissions --append-system-prompt-file {{PROMPT_FILE}} {{USER_PROMPT}}}"
 
 usage() {
   cat <<'USAGE'
-career-ops batch runner — process job offers in batch via claude -p workers
-Uses your default Claude model (Claude Max subscription).
+career-ops batch runner — process job offers in batch via a configurable agent runner
 
 Usage: batch-runner.sh [OPTIONS]
 
@@ -52,11 +53,22 @@ Files:
   logs/                Per-offer logs
   tracker-additions/   Tracker lines for post-batch merge
 
+Environment:
+  BATCH_AGENT_RUNNER_NAME      Friendly runner name for logs/help
+  BATCH_AGENT_RUNNER_TEMPLATE  Command template used for each worker
+                               Required placeholders: {{PROMPT_FILE}}, {{USER_PROMPT}}
+                               Optional placeholder: {{PROJECT_DIR}}
+
 Examples:
   # Dry run to see pending offers
   ./batch-runner.sh --dry-run
 
   # Process all pending
+  ./batch-runner.sh
+
+  # Use a custom runner
+  BATCH_AGENT_RUNNER_NAME="Codex CLI" \
+  BATCH_AGENT_RUNNER_TEMPLATE='codex exec --system-file {{PROMPT_FILE}} --prompt {{USER_PROMPT}}' \
   ./batch-runner.sh
 
   # Retry only failed offers
@@ -80,6 +92,43 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown option: $1"; usage; exit 1 ;;
   esac
 done
+
+runner_binary() {
+  awk '{print $1}' <<<"$BATCH_AGENT_RUNNER_TEMPLATE"
+}
+
+build_runner_command() {
+  local prompt_file="$1"
+  local user_prompt="$2"
+  local prompt_file_q user_prompt_q project_dir_q
+
+  printf -v prompt_file_q '%q' "$prompt_file"
+  printf -v user_prompt_q '%q' "$user_prompt"
+  printf -v project_dir_q '%q' "$PROJECT_DIR"
+
+  local command="$BATCH_AGENT_RUNNER_TEMPLATE"
+  command="${command//\{\{PROMPT_FILE\}\}/$prompt_file_q}"
+  command="${command//\{\{USER_PROMPT\}\}/$user_prompt_q}"
+  command="${command//\{\{PROJECT_DIR\}\}/$project_dir_q}"
+
+  printf '%s\n' "$command"
+}
+
+run_worker_command() {
+  local resolved_prompt="$1"
+  local prompt="$2"
+  local log_file="$3"
+  local command
+  command=$(build_runner_command "$resolved_prompt" "$prompt")
+
+  local exit_code=0
+  (
+    cd "$PROJECT_DIR"
+    bash -lc "$command"
+  ) > "$log_file" 2>&1 || exit_code=$?
+
+  return "$exit_code"
+}
 
 # Lock file to prevent double execution
 acquire_lock() {
@@ -119,8 +168,21 @@ check_prerequisites() {
     exit 1
   fi
 
-  if ! command -v claude &>/dev/null; then
-    echo "ERROR: 'claude' CLI not found in PATH."
+  if [[ "$BATCH_AGENT_RUNNER_TEMPLATE" != *"{{PROMPT_FILE}}"* || "$BATCH_AGENT_RUNNER_TEMPLATE" != *"{{USER_PROMPT}}"* ]]; then
+    echo "ERROR: BATCH_AGENT_RUNNER_TEMPLATE must include {{PROMPT_FILE}} and {{USER_PROMPT}}."
+    exit 1
+  fi
+
+  local runner_bin
+  runner_bin=$(runner_binary)
+  if [[ -z "$runner_bin" ]]; then
+    echo "ERROR: Could not determine the runner binary from BATCH_AGENT_RUNNER_TEMPLATE."
+    exit 1
+  fi
+
+  if ! command -v "$runner_bin" &>/dev/null; then
+    echo "ERROR: Runner binary '$runner_bin' not found in PATH."
+    echo "Set BATCH_AGENT_RUNNER_TEMPLATE to a compatible command."
     exit 1
   fi
 
@@ -350,13 +412,9 @@ process_offer() {
     -e "s|{{ID}}|${esc_id}|g" \
     "$PROMPT_FILE" > "$resolved_prompt"
 
-  # Launch claude -p worker (uses default model from Claude Max subscription)
+  # Launch the configured agent runner.
   local exit_code=0
-  claude -p \
-    --dangerously-skip-permissions \
-    --append-system-prompt-file "$resolved_prompt" \
-    "$prompt" \
-    > "$log_file" 2>&1 || exit_code=$?
+  run_worker_command "$resolved_prompt" "$prompt" "$log_file" || exit_code=$?
 
   # Cleanup resolved prompt
   rm -f "$resolved_prompt"
@@ -378,7 +436,7 @@ process_offer() {
       if (( $(echo "$score < $MIN_SCORE" | bc -l) )); then
         update_state "$id" "$url" "skipped" "$started_at" "$completed_at" "$report_num" "$score" "below-min-score" "$retries"
         echo "    ⏭️  Skipped (score: $score < min-score: $MIN_SCORE)"
-        continue
+        return 0
       fi
     fi
 
@@ -461,6 +519,7 @@ main() {
   fi
 
   echo "=== career-ops batch runner ==="
+  echo "Runner: $BATCH_AGENT_RUNNER_NAME"
   echo "Parallel: $PARALLEL | Max retries: $MAX_RETRIES"
   echo "Input: $total_input offers"
   echo ""
