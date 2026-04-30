@@ -48,10 +48,10 @@ type ProgressMetrics struct {
 	OfferRate     float64 // Offer / Applied
 
 	// Averages
-	AvgScore     float64
-	TopScore     float64
-	TotalOffers  int
-	ActiveApps int // not skip/rejected/discarded
+	AvgScore    float64
+	TopScore    float64
+	TotalOffers int
+	ActiveApps  int // not skip/passed/rejected/discarded
 }
 
 // FunnelStage represents one stage of the application funnel.

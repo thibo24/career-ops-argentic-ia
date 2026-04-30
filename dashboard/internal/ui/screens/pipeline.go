@@ -67,6 +67,7 @@ const (
 const (
 	filterAll       = "all"
 	filterEvaluated = "evaluated"
+	filterPassed    = "passed"
 	filterApplied   = "applied"
 	filterInterview = "interview"
 	filterSkip      = "skip"
@@ -83,6 +84,7 @@ type pipelineTab struct {
 var pipelineTabs = []pipelineTab{
 	{filterAll, "ALL"},
 	{filterEvaluated, "EVALUATED"},
+	{filterPassed, "PASSED"},
 	{filterApplied, "APPLIED"},
 	{filterInterview, "INTERVIEW"},
 	{filterTop, "TOP ≥4"},
@@ -93,10 +95,10 @@ var pipelineTabs = []pipelineTab{
 
 var sortCycle = []string{sortScore, sortDate, sortCompany, sortStatus}
 
-var statusOptions = []string{"Evaluated", "Applied", "Responded", "Interview", "Offer", "Rejected", "Discarded", "SKIP"}
+var statusOptions = []string{"Evaluated", "Passed", "Applied", "Responded", "Interview", "Offer", "Rejected", "Discarded", "SKIP"}
 
 // statusGroupOrder defines display order for grouped view.
-var statusGroupOrder = []string{"interview", "offer", "responded", "applied", "evaluated", "skip", "rejected", "discarded"}
+var statusGroupOrder = []string{"interview", "offer", "responded", "applied", "evaluated", "passed", "skip", "rejected", "discarded"}
 
 // PipelineModel implements the career pipeline dashboard screen.
 type PipelineModel struct {
@@ -329,6 +331,17 @@ func (m PipelineModel) handleKey(msg tea.KeyMsg) (PipelineModel, tea.Cmd) {
 		if len(m.filtered) > 0 {
 			m.statusPicker = true
 			m.statusCursor = 0
+		}
+
+	case "x":
+		if app, ok := m.CurrentApp(); ok {
+			return m, func() tea.Msg {
+				return PipelineUpdateStatusMsg{
+					CareerOpsPath: m.careerOpsPath,
+					App:           app,
+					NewStatus:     "Passed",
+				}
+			}
 		}
 
 	case "g":
@@ -868,6 +881,7 @@ func (m PipelineModel) renderHelp() string {
 		keyStyle.Render("r") + descStyle.Render(" refresh  ") +
 		keyStyle.Render("Enter") + descStyle.Render(" report  ") +
 		keyStyle.Render("o") + descStyle.Render(" open URL  ") +
+		keyStyle.Render("x") + descStyle.Render(" pass  ") +
 		keyStyle.Render("c") + descStyle.Render(" change  ") +
 		keyStyle.Render("v") + descStyle.Render(" view  ") +
 		keyStyle.Render("p") + descStyle.Render(" progress  ") +
@@ -933,6 +947,7 @@ func (m PipelineModel) statusColorMap() map[string]lipgloss.Color {
 		"applied":   m.theme.Sky,
 		"responded": m.theme.Blue,
 		"evaluated": m.theme.Text,
+		"passed":    m.theme.Peach,
 		"skip":      m.theme.Red,
 		"rejected":  m.theme.Subtext,
 		"discarded": m.theme.Subtext,
@@ -973,6 +988,8 @@ func statusLabel(norm string) string {
 		return "Applied"
 	case "evaluated":
 		return "Evaluated"
+	case "passed":
+		return "Passed"
 	case "skip":
 		return "Skip"
 	case "rejected":

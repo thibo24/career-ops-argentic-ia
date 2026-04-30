@@ -3,7 +3,7 @@
  * normalize-statuses.mjs — Clean non-canonical states in applications.md
  *
  * Maps all non-canonical statuses to canonical ones per states.yml:
- *   Evaluada, Aplicado, Respondido, Entrevista, Oferta, Rechazado, Descartado, NO APLICAR
+ *   Evaluada, Passed, Aplicado, Respondido, Entrevista, Oferta, Rechazado, Descartado, NO APLICAR
  *
  * Also strips markdown bold (**) and dates from the status field,
  * moving DUPLICADO info to the notes column.
@@ -42,6 +42,11 @@ function normalizeStatus(raw) {
   if (/^descartada$/i.test(s)) return { status: 'Discarded' };
   if (/^descartado$/i.test(s)) return { status: 'Discarded' };
 
+  // Candidate declined / passed → Passed
+  if (/^(passed|declined|refused|refusee|refuse)$/i.test(s) || /^refus/i.test(lower)) {
+    return { status: 'Passed' };
+  }
+
   // Rechazada / Rechazado → Rejected
   if (/^rechazada?$/i.test(s)) return { status: 'Rejected' };
   if (/^rechazado\s+\d{4}/i.test(s)) return { status: 'Rejected' };
@@ -66,7 +71,7 @@ function normalizeStatus(raw) {
 
   // Already canonical (English, per states.yml) — just fix casing/bold
   const canonical = [
-    'Evaluated', 'Applied', 'Responded', 'Interview',
+    'Evaluated', 'Passed', 'Applied', 'Responded', 'Interview',
     'Offer', 'Rejected', 'Discarded', 'SKIP',
   ];
   for (const c of canonical) {
@@ -75,6 +80,7 @@ function normalizeStatus(raw) {
 
   // Spanish aliases → English canonicals
   if (['evaluada'].includes(lower)) return { status: 'Evaluated' };
+  if (['passed', 'declined', 'refused', 'refusee', 'refuse'].includes(lower) || lower.startsWith('refus')) return { status: 'Passed' };
   if (['aplicado', 'enviada', 'aplicada', 'applied', 'sent'].includes(lower)) return { status: 'Applied' };
   if (['respondido'].includes(lower)) return { status: 'Responded' };
   if (['entrevista'].includes(lower)) return { status: 'Interview' };

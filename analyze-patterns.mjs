@@ -33,6 +33,7 @@ const MIN_THRESHOLD = minThresholdIdx !== -1 && args[minThresholdIdx + 1] !== un
 const ALIASES = {
   'evaluada': 'evaluated', 'condicional': 'evaluated', 'hold': 'evaluated',
   'evaluar': 'evaluated', 'verificar': 'evaluated',
+  'passed': 'passed', 'declined': 'passed', 'refused': 'passed', 'refusee': 'passed', 'refuse': 'passed',
   'aplicado': 'applied', 'enviada': 'applied', 'aplicada': 'applied',
   'applied': 'applied', 'sent': 'applied',
   'respondido': 'responded',
@@ -47,6 +48,7 @@ const ALIASES = {
 function normalizeStatus(raw) {
   const clean = raw.replace(/\*\*/g, '').trim().toLowerCase()
     .replace(/\s+\d{4}-\d{2}-\d{2}.*$/, '').trim();
+  if (clean.startsWith('refus')) return 'passed';
   return ALIASES[clean] || clean;
 }
 
@@ -54,7 +56,7 @@ function classifyOutcome(status) {
   const s = normalizeStatus(status);
   if (['interview', 'offer', 'responded', 'applied'].includes(s)) return 'positive';
   if (['rejected', 'discarded'].includes(s)) return 'negative';
-  if (['skip'].includes(s)) return 'self_filtered';
+  if (['skip', 'passed'].includes(s)) return 'self_filtered';
   return 'pending'; // evaluated
 }
 
@@ -478,7 +480,7 @@ function printSummary(result) {
   // Funnel
   console.log('CONVERSION FUNNEL');
   console.log('-'.repeat(40));
-  const funnelOrder = ['evaluated', 'applied', 'responded', 'interview', 'offer', 'rejected', 'discarded', 'skip'];
+  const funnelOrder = ['evaluated', 'passed', 'applied', 'responded', 'interview', 'offer', 'rejected', 'discarded', 'skip'];
   for (const status of funnelOrder) {
     if (funnel[status]) {
       const pct = Math.round((funnel[status] / metadata.total) * 100);

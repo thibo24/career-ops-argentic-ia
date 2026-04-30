@@ -43,6 +43,7 @@ const CADENCE = {
 const ALIASES = {
   'evaluada': 'evaluated', 'condicional': 'evaluated', 'hold': 'evaluated',
   'evaluar': 'evaluated', 'verificar': 'evaluated',
+  'passed': 'passed', 'declined': 'passed', 'refused': 'passed', 'refusee': 'passed', 'refuse': 'passed',
   'aplicado': 'applied', 'enviada': 'applied', 'aplicada': 'applied',
   'applied': 'applied', 'sent': 'applied',
   'respondido': 'responded',
@@ -59,6 +60,7 @@ const ACTIONABLE_STATUSES = ['applied', 'responded', 'interview'];
 function normalizeStatus(raw) {
   const clean = raw.replace(/\*\*/g, '').trim().toLowerCase()
     .replace(/\s+\d{4}-\d{2}-\d{2}.*$/, '').trim();
+  if (clean.startsWith('refus')) return 'passed';
   return ALIASES[clean] || clean;
 }
 

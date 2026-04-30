@@ -270,6 +270,26 @@ function normalizeJobUrl(url, provider) {
   }
 }
 
+function tokenizeCompanyName(name) {
+  return (name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function matchesExpectedCompany(foundCompany, expectedCompany) {
+  const foundTokens = tokenizeCompanyName(foundCompany);
+  const expectedTokens = tokenizeCompanyName(expectedCompany);
+
+  if (foundTokens.length === 0 || expectedTokens.length === 0) {
+    return true;
+  }
+
+  return expectedTokens.every(token => foundTokens.includes(token));
+}
+
 async function openSearchPage(page, url) {
   await page.goto(url, {
     waitUntil: 'domcontentloaded',
@@ -313,6 +333,7 @@ async function runLinkedInSearch(page, searchQuery, runtimePrefs) {
         ...job,
         url: normalizedUrl,
         source: searchQuery.name,
+        expectedCompany: searchQuery.expectedCompany || '',
       });
     }
   }
@@ -366,6 +387,7 @@ async function runIndeedSearch(page, searchQuery, runtimePrefs) {
         ...job,
         url: normalizedUrl,
         source: searchQuery.name,
+        expectedCompany: searchQuery.expectedCompany || '',
       });
     }
   }
@@ -419,6 +441,24 @@ function loadSeenCompanyRoles() {
       }
     }
   }
+
+  if (existsSync(PIPELINE_PATH)) {
+    const lines = readFileSync(PIPELINE_PATH, 'utf-8').split('\n');
+    for (const line of lines) {
+      let match = line.match(/^- \[ \] https?:\/\/\S+\s+\|\s*([^|]+)\s*\|\s*([^|]+)\s*(?:\||$)/);
+      if (!match) {
+        match = line.match(/^- \[x\] #\d+\s+\|\s*https?:\/\/\S+\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|/);
+      }
+      if (match) {
+        const company = match[1].trim().toLowerCase();
+        const role = match[2].trim().toLowerCase();
+        if (company && role) {
+          seen.add(`${company}::${role}`);
+        }
+      }
+    }
+  }
+
   return seen;
 }
 
@@ -508,11 +548,21 @@ async function main() {
   const profile = loadProfileConfig();
   const runtimePrefs = buildRuntimePreferences(profile);
   const companies = config.tracked_companies || [];
-  const searchQueries = filterCompany
-    ? []
-    : (config.search_queries || [])
+  const enabledCompanies = companies
+    .filter(c => c.enabled !== false)
+    .filter(c => !filterCompany || c.name.toLowerCase().includes(filterCompany));
+  const searchQueries = [
+    ...((filterCompany ? [] : (config.search_queries || []))
       .filter(q => q.enabled !== false && q.query)
-      .map(q => ({ ...q, query: expandQueryTemplate(q.query, runtimePrefs) }));
+      .map(q => ({ ...q, query: expandQueryTemplate(q.query, runtimePrefs) }))),
+    ...enabledCompanies
+      .filter(c => c.scan_method === 'websearch' && c.scan_query)
+      .map(c => ({
+        name: `Tracked Company - ${c.name}`,
+        query: expandQueryTemplate(c.scan_query, runtimePrefs),
+        expectedCompany: c.name,
+      })),
+  ];
   const titleFilter = buildKeywordFilter(config.title_filter);
   const companyFilter = buildKeywordFilter({
     positive: config.company_filter?.positive || [],
@@ -529,13 +579,11 @@ async function main() {
   });
 
   // 2. Filter to enabled companies with detectable APIs
-  const targets = companies
-    .filter(c => c.enabled !== false)
-    .filter(c => !filterCompany || c.name.toLowerCase().includes(filterCompany))
+  const targets = enabledCompanies
     .map(c => ({ ...c, _api: detectApi(c) }))
     .filter(c => c._api !== null);
 
-  const skippedCount = companies.filter(c => c.enabled !== false).length - targets.length;
+  const skippedCount = enabledCompanies.length - targets.length;
 
   console.log(`Scanning ${targets.length} companies via API (${skippedCount} skipped — no API detected)`);
   console.log(`Running ${searchQueries.length} portal search queries`);
@@ -554,6 +602,10 @@ async function main() {
   const errors = [];
 
   function ingestJob(job) {
+    if (job.expectedCompany && !matchesExpectedCompany(job.company, job.expectedCompany)) {
+      totalFiltered++;
+      return;
+    }
     if (!titleFilter(job.title)) {
       totalFiltered++;
       return;

@@ -456,7 +456,7 @@ func ComputeMetrics(apps []model.CareerApplication) model.PipelineMetrics {
 		if app.HasPDF {
 			m.WithPDF++
 		}
-		if status != "skip" && status != "rejected" && status != "discarded" {
+		if status != "skip" && status != "passed" && status != "rejected" && status != "discarded" {
 			m.Actionable++
 		}
 	}
@@ -483,6 +483,8 @@ func NormalizeStatus(raw string) string {
 	// Most restrictive first — accepts both English and Spanish
 	case strings.Contains(s, "no aplicar") || strings.Contains(s, "no_aplicar") || s == "skip" || strings.Contains(s, "geo blocker"):
 		return "skip"
+	case strings.Contains(s, "passed") || strings.Contains(s, "declined") || strings.Contains(s, "refused") || strings.Contains(s, "refusee") || strings.Contains(s, "refuse") || strings.HasPrefix(s, "refus"):
+		return "passed"
 	case strings.Contains(s, "interview") || strings.Contains(s, "entrevista"):
 		return "interview"
 	case s == "offer" || strings.Contains(s, "oferta"):
@@ -602,14 +604,16 @@ func StatusPriority(status string) int {
 		return 3
 	case "evaluated":
 		return 4
-	case "skip":
+	case "passed":
 		return 5
-	case "rejected":
+	case "skip":
 		return 6
-	case "discarded":
+	case "rejected":
 		return 7
-	default:
+	case "discarded":
 		return 8
+	default:
+		return 9
 	}
 }
 
@@ -637,7 +641,7 @@ func ComputeProgressMetrics(apps []model.CareerApplication) model.ProgressMetric
 		if norm == "offer" {
 			pm.TotalOffers++
 		}
-		if norm != "skip" && norm != "rejected" && norm != "discarded" {
+		if norm != "skip" && norm != "passed" && norm != "rejected" && norm != "discarded" {
 			pm.ActiveApps++
 		}
 	}

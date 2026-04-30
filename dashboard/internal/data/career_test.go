@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/santifer/career-ops/dashboard/internal/model"
 )
 
 func TestParseApplicationsUsesTrackerNumberColumn(t *testing.T) {
@@ -39,5 +41,30 @@ func TestParseApplicationsUsesTrackerNumberColumn(t *testing.T) {
 	}
 	if apps[0].ReportNumber != "140" || apps[1].ReportNumber != "143" {
 		t.Fatalf("expected report numbers to stay aligned with tracker IDs, got %q and %q", apps[0].ReportNumber, apps[1].ReportNumber)
+	}
+}
+
+func TestNormalizeStatusAndMetricsSupportPassed(t *testing.T) {
+	if got := NormalizeStatus("declined"); got != "passed" {
+		t.Fatalf("expected declined to normalize to passed, got %q", got)
+	}
+	if got := NormalizeStatus("refusee"); got != "passed" {
+		t.Fatalf("expected refusee to normalize to passed, got %q", got)
+	}
+
+	apps := []model.CareerApplication{
+		{Status: "Evaluated", Score: 4.0},
+		{Status: "Passed", Score: 4.3},
+		{Status: "Applied", Score: 4.5},
+	}
+
+	metrics := ComputeMetrics(apps)
+	if metrics.Actionable != 2 {
+		t.Fatalf("expected Passed to be excluded from actionable count, got %d", metrics.Actionable)
+	}
+
+	progress := ComputeProgressMetrics(apps)
+	if progress.ActiveApps != 2 {
+		t.Fatalf("expected Passed to be excluded from active apps, got %d", progress.ActiveApps)
 	}
 }

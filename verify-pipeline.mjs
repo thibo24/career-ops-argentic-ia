@@ -34,12 +34,13 @@ mkdirSync(join(CAREER_OPS, 'data'), { recursive: true });
 mkdirSync(REPORTS_DIR, { recursive: true });
 
 const CANONICAL_STATUSES = [
-  'evaluated', 'applied', 'responded', 'interview',
+  'evaluated', 'passed', 'applied', 'responded', 'interview',
   'offer', 'rejected', 'discarded', 'skip',
 ];
 
 const ALIASES = {
   'evaluada': 'evaluated', 'condicional': 'evaluated', 'hold': 'evaluated', 'evaluar': 'evaluated', 'verificar': 'evaluated',
+  'passed': 'passed', 'declined': 'passed', 'refused': 'passed', 'refusee': 'passed', 'refuse': 'passed',
   'aplicado': 'applied', 'enviada': 'applied', 'aplicada': 'applied', 'applied': 'applied', 'sent': 'applied',
   'respondido': 'responded',
   'entrevista': 'interview',
@@ -87,8 +88,9 @@ for (const e of entries) {
   const clean = e.status.replace(/\*\*/g, '').trim().toLowerCase();
   // Strip trailing dates
   const statusOnly = clean.replace(/\s+\d{4}-\d{2}-\d{2}.*$/, '').trim();
+  const normalizedStatus = /^refus/i.test(statusOnly) ? 'passed' : (ALIASES[statusOnly] || statusOnly);
 
-  if (!CANONICAL_STATUSES.includes(statusOnly) && !ALIASES[statusOnly]) {
+  if (!CANONICAL_STATUSES.includes(normalizedStatus)) {
     error(`#${e.num}: Non-canonical status "${e.status}"`);
     badStatuses++;
   }

@@ -29,6 +29,7 @@ const STATUS_RANK = {
   // English canonicals (states.yml labels)
   'skip': 0,
   'discarded': 0,
+  'passed': 1,
   'rejected': 1,
   'evaluated': 2,
   'applied': 3,
@@ -40,6 +41,11 @@ const STATUS_RANK = {
   'no aplicar': 0,
   'descartado': 0,
   'descartada': 0,
+  'passed': 1,
+  'declined': 1,
+  'refused': 1,
+  'refusee': 1,
+  'refuse': 1,
   'rechazado': 1,  // Terminal — below active states
   'rechazada': 1,
   'evaluada': 2,

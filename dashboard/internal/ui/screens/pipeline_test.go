@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/santifer/career-ops/dashboard/internal/model"
 	"github.com/santifer/career-ops/dashboard/internal/theme"
 )
@@ -112,8 +114,15 @@ func TestRenderAppLineIncludesDateColumn(t *testing.T) {
 	}
 }
 
-func TestRejectedAndDiscardedTabsFilterCorrectly(t *testing.T) {
+func TestTerminalTabsFilterCorrectly(t *testing.T) {
 	apps := []model.CareerApplication{
+		{
+			Company:    "PassCo",
+			Role:       "Backend Engineer",
+			Status:     "Passed",
+			Score:      3.8,
+			ReportPath: "reports/000-passco.md",
+		},
 		{
 			Company:    "Acme",
 			Role:       "Backend Engineer",
@@ -146,6 +155,12 @@ func TestRejectedAndDiscardedTabsFilterCorrectly(t *testing.T) {
 		40,
 	)
 
+	pm.activeTab = tabIndexForFilter(t, filterPassed)
+	pm.applyFilterAndSort()
+	if len(pm.filtered) != 1 || pm.filtered[0].Status != "Passed" {
+		t.Fatalf("expected passed tab to isolate passed rows, got %+v", pm.filtered)
+	}
+
 	pm.activeTab = tabIndexForFilter(t, filterRejected)
 	pm.applyFilterAndSort()
 	if len(pm.filtered) != 1 || pm.filtered[0].Status != "Rejected" {
@@ -156,5 +171,40 @@ func TestRejectedAndDiscardedTabsFilterCorrectly(t *testing.T) {
 	pm.applyFilterAndSort()
 	if len(pm.filtered) != 1 || pm.filtered[0].Status != "Discarded" {
 		t.Fatalf("expected discarded tab to isolate discarded rows, got %+v", pm.filtered)
+	}
+}
+
+func TestRejectShortcutMarksOfferAsPassed(t *testing.T) {
+	apps := []model.CareerApplication{
+		{
+			Company:    "Acme",
+			Role:       "Backend Engineer",
+			Status:     "Evaluated",
+			Score:      4.2,
+			ReportPath: "reports/001-acme.md",
+		},
+	}
+
+	pm := NewPipelineModel(
+		theme.NewTheme("catppuccin-mocha"),
+		apps,
+		model.PipelineMetrics{Total: len(apps)},
+		"..",
+		120,
+		40,
+	)
+
+	_, cmd := pm.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	if cmd == nil {
+		t.Fatal("expected x shortcut to emit a status update command")
+	}
+
+	msg := cmd()
+	update, ok := msg.(PipelineUpdateStatusMsg)
+	if !ok {
+		t.Fatalf("expected PipelineUpdateStatusMsg, got %T", msg)
+	}
+	if update.NewStatus != "Passed" {
+		t.Fatalf("expected x shortcut to set Passed, got %q", update.NewStatus)
 	}
 }
